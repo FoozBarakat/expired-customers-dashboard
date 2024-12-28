@@ -1,0 +1,1746 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Expired Customers Dashboard</title>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js Data Labels Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Custom Styles */
+      .chart-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 40vh;
+        background-color: #ffffff;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        padding: 20px;
+      }
+      .chart-title {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #4b5563;
+        text-align: center;
+        margin-bottom: 10px;
+      }
+      .total-customers-card {
+        background-color: #3b82f6; /* Tailwind's blue-500 */
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+      .total-customers-icon {
+        font-size: 3rem;
+        margin-bottom: 10px;
+      }
+      .table-container {
+        margin-top: 20px;
+        background-color: #ffffff;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      .table-wrapper {
+        overflow-x: auto; /* Enable horizontal scrolling for the table */
+        white-space: nowrap; /* Prevent text wrapping inside table cells */
+      }
+      table {
+        width: 100%;
+        min-width: 1600px; /* Adjusted to accommodate more columns */
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      th {
+        background-color: #f3f4f6;
+        font-weight: bold;
+        position: sticky;
+        top: 0; /* Fix the header to the top */
+        z-index: 2;
+      }
+      tr:nth-child(odd) td {
+        background-color: #f9fafb; /* Odd rows background */
+      }
+      tr:nth-child(even) td {
+        background-color: #ffffff; /* Even rows background */
+      }
+      .pagination-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 10px;
+      }
+      .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0;
+      }
+      .pagination button {
+        padding: 8px 12px;
+        margin: 0 5px;
+        border: none;
+        border-radius: 4px;
+        background-color: #d1d5db; /* Tailwind's gray-300 */
+        color: #374151; /* Tailwind's gray-700 */
+        cursor: pointer;
+      }
+      .pagination button.disabled {
+        background-color: #e5e7eb; /* Tailwind's gray-200 */
+        cursor: not-allowed;
+      }
+      .pagination .page-number {
+        padding: 8px 12px;
+        margin: 0 5px;
+        border-radius: 4px;
+        background-color: #d1d5db; /* Tailwind's gray-300 */
+        color: #374151; /* Tailwind's gray-700 */
+        cursor: pointer;
+      }
+      .pagination .page-number.active {
+        background-color: #3b82f6; /* Tailwind's blue-500 */
+        color: white;
+        font-weight: bold;
+      }
+      /* Editable Cell Styles */
+      td.editable-cell {
+        position: relative;
+        cursor: pointer;
+      }
+      /* Dropdown Overlay */
+      select.editable-dropdown {
+        width: 100%;
+        padding: 8px;
+        border: none;
+        border-radius: 4px;
+        background-color: #e0f2fe; /* Tailwind's blue-200 */
+        outline: none;
+      }
+      /* Update Status Indicator */
+      .update-status {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        padding: 8px 12px;
+        border-radius: 4px;
+        display: none;
+        font-weight: bold;
+        z-index: 10;
+      }
+      .update-status.success {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      .update-status.error {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+      /* Modal Title */
+      .modal-title {
+        font-size: 1.75rem;
+        font-weight: bold;
+        color: #4b5563;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+      /* Adjust Add Row Button */
+      #addRowButton {
+        background-color: #3b82f6; /* Tailwind's blue-500 */
+        color: white;
+      }
+      #addRowButton:hover {
+        background-color: #2563eb; /* Tailwind's blue-600 */
+      }
+      /* Adjust Save Button in Modal */
+      #saveButton {
+        background-color: #3b82f6; /* Tailwind's blue-500 */
+        color: white;
+      }
+      #saveButton:hover {
+        background-color: #2563eb; /* Tailwind's blue-600 */
+      }
+
+      /* ===== Added CSS for Fixed First Four Columns ===== */
+      /* Fixed first four columns: Date, Time, Engineer's Name, Customer Name */
+      th:nth-child(1),
+      td:nth-child(1) {
+        position: sticky;
+        left: 0;
+        background: #f3f4f6; /* Same as header background */
+        z-index: 3; /* Higher than other cells */
+        min-width: 150px; /* Adjust as needed */
+      }
+
+      th:nth-child(2),
+      td:nth-child(2) {
+        position: sticky;
+        left: 150px; /* Width of first column */
+        background: #f3f4f6;
+        z-index: 3;
+        min-width: 150px;
+      }
+
+      th:nth-child(3),
+      td:nth-child(3) {
+        position: sticky;
+        left: 300px; /* Sum of first and second columns */
+        background: #f3f4f6;
+        z-index: 3;
+        min-width: 200px;
+      }
+
+      th:nth-child(4),
+      td:nth-child(4) {
+        position: sticky;
+        left: 500px; /* Sum of first, second, and third columns */
+        background: #f3f4f6;
+        z-index: 3;
+        min-width: 200px;
+      }
+      /* ===== End of Added CSS ===== */
+    </style>
+  </head>
+  <body class="bg-gray-100 text-gray-800 relative">
+    <div class="container mx-auto p-4">
+      <!-- Dashboard Title -->
+      <h1 class="text-6xl font-bold text-center text-gray-600 mb-6">
+        Expired Customers Dashboard
+      </h1>
+
+      <!-- Authentication Buttons at Top-Right -->
+      <div class="flex justify-end mb-4">
+        <button
+          id="authButton"
+          class="bg-blue-500 text-white py-2 px-4 rounded-lg"
+        >
+          Sign In with Google
+        </button>
+        <button
+          id="signOutButton"
+          class="bg-red-500 text-white py-2 px-4 rounded-lg ml-2 hidden"
+        >
+          Sign Out
+        </button>
+      </div>
+
+      <!-- Update Status Indicator -->
+      <div id="updateStatus" class="update-status"></div>
+
+      <!-- Total Customers -->
+      <div class="total-customers-card">
+        <h2 id="totalCustomersDisplay" class="text-4xl font-bold">
+          Total Customers: Calculating...
+        </h2>
+      </div>
+
+      <!-- Charts Section -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div>
+          <h3 class="chart-title">Renewed vs. Not Renewed</h3>
+          <div class="chart-container">
+            <canvas id="renewalChart"></canvas>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="chart-title">Package Distribution</h3>
+          <div class="chart-container">
+            <canvas id="packageChart"></canvas>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="chart-title">Contacted by Sales</h3>
+          <div class="chart-container">
+            <canvas id="contactChart"></canvas>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="chart-title">Status</h3>
+          <div class="chart-container">
+            <canvas id="statusChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table Section -->
+      <div class="table-container">
+        <h3 class="chart-title mb-4 text-center">Customer Data</h3>
+        <div class="flex justify-end mb-4">
+          <button
+            id="addRowButton"
+            class="bg-blue-500 text-white py-2 px-4 rounded-lg disabled:opacity-50"
+            disabled
+          >
+            Add Customer
+          </button>
+        </div>
+        <div class="table-wrapper">
+          <table id="data-table"></table>
+        </div>
+        <div class="pagination-container">
+          <div class="pagination" id="pagination-controls"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for Adding New Row -->
+    <div
+      id="addRowModal"
+      class="fixed inset-0 flex justify-center items-center bg-black bg-opacity-50 hidden z-50"
+    >
+      <div
+        class="bg-white w-3/4 md:w-1/2 p-6 rounded-lg shadow-lg overflow-y-auto max-h-screen relative"
+      >
+        <!-- Modal Title -->
+        <h2 class="modal-title">Add Expired Customer</h2>
+        <!-- Form Start -->
+        <form id="addRowForm">
+          <!-- Row 1 -->
+          <div class="grid grid-cols-3 gap-4 mb-4">
+            <div>
+              <label for="date" class="block text-sm font-medium text-gray-700">
+                Date
+              </label>
+              <input
+                type="date"
+                id="date"
+                name="date"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                required
+              />
+            </div>
+            <div>
+              <label for="time" class="block text-sm font-medium text-gray-700">
+                Time
+              </label>
+              <input
+                type="time"
+                id="time"
+                name="time"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                required
+              />
+            </div>
+            <div>
+              <label
+                for="engineerName"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Engineer's Name
+              </label>
+              <input
+                type="text"
+                id="engineerName"
+                name="engineerName"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                required
+              />
+            </div>
+          </div>
+
+          <!-- Row 2 -->
+          <div class="grid grid-cols-3 gap-4 mb-4">
+            <div>
+              <label
+                for="customerName"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Customer Name
+              </label>
+              <input
+                type="text"
+                id="customerName"
+                name="customerName"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                required
+              />
+            </div>
+            <div>
+              <label
+                for="purpose"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Purpose of Interaction
+              </label>
+              <input
+                type="text"
+                id="purpose"
+                name="purpose"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                value="Expired"
+                readonly
+              />
+            </div>
+            <div>
+              <label
+                for="ticketOpened"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Ticket Opened?
+              </label>
+              <select
+                id="ticketOpened"
+                name="ticketOpened"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                required
+              >
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Row 3 -->
+          <div class="grid grid-cols-3 gap-4 mb-4">
+            <div>
+              <label
+                for="customerContacted"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Contacted by Customer Services?
+              </label>
+              <select
+                id="customerContacted"
+                name="customerContacted"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                required
+              >
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            </div>
+            <div>
+              <label
+                for="packageName"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Name of Package
+              </label>
+              <input
+                type="text"
+                id="packageName"
+                name="packageName"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                required
+              />
+            </div>
+            <div>
+              <label
+                for="packageType"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Package Type
+              </label>
+              <select
+                id="packageType"
+                name="packageType"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                required
+              >
+                <option value="Shared">Shared</option>
+                <option value="LeasedLine">LeasedLine</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Row 4 -->
+          <div class="grid grid-cols-3 gap-4 mb-4">
+            <div>
+              <label
+                for="renewalReason"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Reason for Non-Renewal
+              </label>
+              <input
+                type="text"
+                id="renewalReason"
+                name="renewalReason"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-700 sm:text-sm"
+                value="مشكلة تجارية (الباقات/السعر)"
+                readonly
+              />
+            </div>
+            <div>
+              <label
+                for="salesPerson"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Sales Person
+              </label>
+              <input
+                type="text"
+                id="salesPerson"
+                name="salesPerson"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                required
+              />
+            </div>
+            <div>
+              <label
+                for="lastUpdated"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Last Updated
+              </label>
+              <input
+                type="date"
+                id="lastUpdated"
+                name="lastUpdated"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                required
+              />
+            </div>
+          </div>
+
+          <!-- Row 5 -->
+          <div class="grid grid-cols-3 gap-4 mb-4">
+            <div>
+              <label
+                for="contacted"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Contacted by Sales
+              </label>
+              <select
+                id="contacted"
+                name="contacted"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                required
+              >
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+                <option value="No Response">No Response</option>
+              </select>
+            </div>
+            <div>
+              <label
+                for="renewed"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Renewed
+              </label>
+              <select
+                id="renewed"
+                name="renewed"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                required
+              >
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            </div>
+            <div>
+              <label
+                for="status"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Status
+              </label>
+              <select
+                id="status"
+                name="status"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                required
+              >
+                <option value="Sales to contact">Sales to contact</option>
+                <option value="Pending">Pending</option>
+                <option value="Active without contact">
+                  Active without contact
+                </option>
+                <option value="Close">Close</option>
+                <option value="Expired">Expired</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Row 6: Multiline text field -->
+          <div class="mb-4">
+            <label for="notes" class="block text-sm font-medium text-gray-700">
+              Notes
+            </label>
+            <textarea
+              id="notes"
+              name="notes"
+              rows="4"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              required
+              placeholder="Additional notes..."
+            ></textarea>
+          </div>
+
+          <!-- Row 7: Multiline text field -->
+          <div class="mb-4">
+            <label
+              for="salesTeamAction"
+              class="block text-sm font-medium text-gray-700"
+            >
+              Sales Team Action
+            </label>
+            <textarea
+              id="salesTeamAction"
+              name="salesTeamAction"
+              rows="4"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              placeholder="Actions taken by the sales team..."
+            ></textarea>
+          </div>
+
+          <!-- Action buttons -->
+          <div class="flex justify-end items-center mt-4">
+            <button
+              type="button"
+              id="cancelButton"
+              class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 mr-2"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              id="saveButton"
+              class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            >
+              Save
+            </button>
+          </div>
+        </form>
+        <!-- Form End -->
+      </div>
+    </div>
+
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <script>
+      // Register the Data Labels plugin globally
+      Chart.register(ChartDataLabels);
+
+      // Configuration
+      const CLIENT_ID =
+        "1090641182645-t7088kcg7jl2huvdm1b6i0td8fuiv88h.apps.googleusercontent.com"; // Replace with your actual Client ID
+      const SHEET_ID = "1SUzgypaR_1wixBj7yGdW_-V5yzJ16DCFCtqf_yArP4g"; // Replace with your actual Sheet ID
+      const SHEET_NAME = "Sheet1"; // Replace with your actual Sheet name if different
+      const SHEETS_API_BASE = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_NAME}!A:Q`;
+
+      // DOM Elements
+      const authButton = document.getElementById("authButton");
+      const signOutButton = document.getElementById("signOutButton");
+      const addRowButton = document.getElementById("addRowButton");
+      const cancelButton = document.getElementById("cancelButton");
+      const addRowForm = document.getElementById("addRowForm");
+      const dataTable = document.getElementById("data-table");
+      const paginationControls = document.getElementById("pagination-controls");
+      const totalCustomersDisplay = document.getElementById(
+        "totalCustomersDisplay"
+      );
+      const addRowModal = document.getElementById("addRowModal");
+      const updateStatus = document.getElementById("updateStatus");
+
+      let accessToken = null;
+      let allData = [];
+      let currentPage = 1;
+      const rowsPerPage = 8;
+      let renewalChart, packageChart, contactChart, statusChart;
+
+      // Session Persistence Configuration
+      const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000; // One week in milliseconds
+      const TOKEN_STORAGE_KEY = "dashboard_access_token";
+      const TOKEN_EXPIRY_KEY = "dashboard_token_expiry";
+      const SESSION_START_KEY = "dashboard_session_start";
+
+      // Initialize Google Identity Services
+      function initializeGSI() {
+        console.log("Initializing Google Identity Services");
+        window.google.accounts.id.initialize({
+          client_id: CLIENT_ID,
+          callback: handleCredentialResponse,
+        });
+
+        window.google.accounts.id.renderButton(
+          authButton,
+          { theme: "outline", size: "large" } // customization attributes
+        );
+
+        // Optionally, display the One Tap prompt
+        // window.google.accounts.id.prompt();
+      }
+
+      // Handle the credential response
+      function handleCredentialResponse(response) {
+        console.log("Credential Response Received:", response);
+        // Decode the JWT token to extract information
+        const data = parseJwt(response.credential);
+        console.log("Decoded JWT:", data);
+
+        // GIS does not provide the access token directly in the credential response
+        // To obtain an access token, use the Token Client
+        requestAccessToken();
+      }
+
+      // Parse JWT token (for ID token if needed)
+      function parseJwt(token) {
+        try {
+          const base64Url = token.split(".")[1];
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+          const jsonPayload = decodeURIComponent(
+            atob(base64)
+              .split("")
+              .map(function (c) {
+                return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+              })
+              .join("")
+          );
+
+          return JSON.parse(jsonPayload);
+        } catch (error) {
+          console.error("Error parsing JWT:", error);
+          return {};
+        }
+      }
+
+      // Initialize Token Client
+      let tokenClient;
+
+      function initializeTokenClient() {
+        console.log("Initializing Token Client");
+        tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: CLIENT_ID,
+          scope: "https://www.googleapis.com/auth/spreadsheets",
+          callback: (response) => {
+            console.log("Token Client Callback:", response);
+            if (response.error) {
+              console.error("Error obtaining access token:", response.error);
+              alert("Authentication failed. Please try again.");
+              return;
+            }
+            accessToken = response.access_token;
+            const expiryTime = Date.now() + response.expires_in * 1000; // expires_in is in seconds
+            console.log("Access Token Obtained:", accessToken);
+
+            // Save token and its expiry to localStorage
+            localStorage.setItem(TOKEN_STORAGE_KEY, accessToken);
+            localStorage.setItem(TOKEN_EXPIRY_KEY, expiryTime);
+            if (!localStorage.getItem(SESSION_START_KEY)) {
+              localStorage.setItem(SESSION_START_KEY, Date.now());
+            }
+
+            onAccessTokenReceived();
+          },
+        });
+      }
+
+      // Request Access Token
+      function requestAccessToken() {
+        console.log("Requesting Access Token");
+        tokenClient.requestAccessToken({ prompt: "consent" });
+      }
+
+      // Handle Access Token Received
+      function onAccessTokenReceived() {
+        console.log("Access Token Received and Handled");
+        // Hide the auth button and show sign out button
+        authButton.classList.add("hidden");
+        signOutButton.classList.remove("hidden");
+        addRowButton.disabled = false;
+
+        // Fetch and render data
+        fetchSheetData();
+
+        // Initialize charts
+        initializeCharts();
+      }
+
+      // Sign out function
+      signOutButton.addEventListener("click", () => {
+        console.log("Signing Out");
+        accessToken = null;
+        allData = [];
+        currentPage = 1;
+        dataTable.innerHTML = "";
+        paginationControls.innerHTML = "";
+        totalCustomersDisplay.textContent = "Total Customers: 0";
+        addRowButton.disabled = true;
+        signOutButton.classList.add("hidden");
+        authButton.classList.remove("hidden");
+
+        // Clear Google accounts session and localStorage
+        google.accounts.id.disableAutoSelect();
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+        localStorage.removeItem(TOKEN_EXPIRY_KEY);
+        localStorage.removeItem(SESSION_START_KEY);
+      });
+
+      // Fetch data from Google Sheets
+      async function fetchSheetData() {
+        console.log("Fetching data from Google Sheets");
+        try {
+          const response = await fetch(
+            `${SHEETS_API_BASE}?majorDimension=ROWS`,
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+              },
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(
+              `Error fetching data: ${response.status} ${response.statusText}`
+            );
+          }
+
+          const data = await response.json();
+          console.log("Data Fetched:", data);
+          allData = data.values.slice(1); // Exclude header row
+          renderTable();
+          updateTotalCustomers();
+          updateCharts();
+        } catch (error) {
+          console.error("Error fetching sheet data:", error);
+          alert(
+            "Failed to fetch data. Please ensure the sheet ID and permissions are correct."
+          );
+        }
+      }
+
+      // Render the table based on currentPage
+      function renderTable() {
+        console.log("Rendering table for page:", currentPage);
+        dataTable.innerHTML = "";
+
+        if (allData.length === 0) return;
+
+        // Create table headers
+        const headerRow = document.createElement("tr");
+        const headers = [
+          "Date",
+          "Time",
+          "Engineer's Name",
+          "Customer Name",
+          "Purpose of Interaction",
+          "Ticket Opened?",
+          "Contacted by Customer Services?",
+          "Name of Package",
+          "Package Type",
+          "Reason for Non-Renewal",
+          "Sales Person",
+          "Last Updated",
+          "Contacted by Sales",
+          "Renewed",
+          "Status",
+          "Notes",
+          "Sales Team Action",
+        ];
+        headers.forEach((header, index) => {
+          const th = document.createElement("th");
+          th.textContent = header;
+          // Assign data-column-index for mapping
+          th.dataset.columnIndex = index;
+          headerRow.appendChild(th);
+        });
+        dataTable.appendChild(headerRow);
+
+        // Calculate pagination
+        const totalPages = Math.ceil(allData.length / rowsPerPage);
+        const start = (currentPage - 1) * rowsPerPage;
+        const end = start + rowsPerPage;
+        const paginatedData = allData.slice(start, end);
+        console.log(
+          `Displaying rows ${start + 1} to ${
+            end > allData.length ? allData.length : end
+          } of ${allData.length}`
+        );
+
+        // Create table rows
+        paginatedData.forEach((row, rowIndex) => {
+          const tr = document.createElement("tr");
+          headers.forEach((header, colIndex) => {
+            const td = document.createElement("td");
+            td.textContent = row[colIndex] || "";
+            // Identify if the column should have a dropdown
+            const dropdownColumns = [
+              4, // Purpose of Interaction
+              5, // Ticket Opened?
+              6, // Contacted by Customer Services?
+              8, // Package Type
+              12, // Contacted by Sales
+              13, // Renewed
+              14, // Status
+            ];
+            if (dropdownColumns.includes(colIndex)) {
+              td.classList.add("editable-dropdown-cell");
+              // Remove contenteditable for dropdown cells
+              // Instead, handle dropdown via JavaScript
+            } else {
+              td.setAttribute("contenteditable", "true");
+              td.classList.add("editable-cell");
+            }
+            // Assign data-row-index and data-col-index for mapping
+            td.dataset.rowIndex = start + rowIndex + 2; // +2 because sheet rows start at 1 and first row is headers
+            td.dataset.colIndex = colIndex;
+            tr.appendChild(td);
+          });
+          dataTable.appendChild(tr);
+        });
+
+        // Add event listeners to editable cells and dropdown cells
+        addEditableCellListeners();
+        addDropdownCellListeners();
+
+        // Render pagination controls
+        renderPagination(totalPages);
+      }
+
+      // Add event listeners to editable cells
+      function addEditableCellListeners() {
+        const editableCells = document.querySelectorAll("td.editable-cell");
+        editableCells.forEach((cell) => {
+          // Listen for blur event to detect when editing is done
+          cell.addEventListener("blur", handleCellEdit);
+          // Optional: Listen for Enter key to finish editing
+          cell.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              cell.blur();
+            }
+          });
+        });
+      }
+
+      // Add event listeners to dropdown cells
+      function addDropdownCellListeners() {
+        const dropdownCells = document.querySelectorAll(
+          "td.editable-dropdown-cell"
+        );
+        dropdownCells.forEach((cell) => {
+          cell.addEventListener("click", function () {
+            // If a dropdown is already present, do nothing
+            if (cell.querySelector("select")) return;
+
+            const currentValue = cell.textContent.trim();
+            const colIndex = parseInt(cell.dataset.colIndex);
+
+            // Define dropdown options based on column index
+            let options = [];
+            switch (colIndex) {
+              case 4: // Purpose of Interaction
+                options = ["Expired"];
+                break;
+              case 5: // Ticket Opened?
+                options = ["Yes", "No"];
+                break;
+              case 6: // Contacted by Customer Services?
+                options = ["Yes", "No"];
+                break;
+              case 8: // Package Type
+                options = ["Shared", "LeasedLine"];
+                break;
+              case 12: // Contacted by Sales
+                options = ["Yes", "No", "No Response"];
+                break;
+              case 13: // Renewed
+                options = ["Yes", "No"];
+                break;
+              case 14: // Status
+                options = [
+                  "Sales to contact",
+                  "Pending",
+                  "Active without contact",
+                  "Close",
+                  "Expired",
+                ];
+                break;
+              default:
+                options = [];
+            }
+
+            if (options.length === 0) return;
+
+            // Create select element
+            const select = document.createElement("select");
+            select.classList.add("editable-dropdown");
+            options.forEach((option) => {
+              const opt = document.createElement("option");
+              opt.value = option;
+              opt.textContent = option;
+              if (option === currentValue) {
+                opt.selected = true;
+              }
+              select.appendChild(opt);
+            });
+
+            // Replace cell content with select
+            cell.textContent = "";
+            cell.appendChild(select);
+            select.focus();
+
+            // Function to handle updating the cell and Google Sheet
+            const handleUpdate = async (selectedValue) => {
+              cell.textContent = selectedValue;
+
+              const rowIndex = parseInt(cell.dataset.rowIndex);
+              const colIndex = parseInt(cell.dataset.colIndex);
+              const colLetter = getColumnLetter(colIndex + 1); // Convert to 1-based and then to letter
+
+              console.log(
+                `Dropdown Edited: Row ${rowIndex}, Column ${colLetter} - New Value: ${selectedValue}`
+              );
+
+              // Define the range to update
+              const range = `${SHEET_NAME}!${colLetter}${rowIndex}`;
+              console.log(
+                `Updating range: ${range} with value: ${selectedValue}`
+              );
+
+              // Prepare the request body
+              const requestBody = {
+                range: range,
+                majorDimension: "ROWS",
+                values: [[selectedValue]],
+              };
+
+              try {
+                // Send update request to Google Sheets API
+                const response = await fetch(
+                  `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`,
+                  {
+                    method: "PUT",
+                    headers: {
+                      Authorization: `Bearer ${accessToken}`,
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(requestBody),
+                  }
+                );
+
+                if (!response.ok) {
+                  throw new Error(
+                    `Error updating cell: ${response.status} ${response.statusText}`
+                  );
+                }
+
+                const result = await response.json();
+                console.log("Cell Updated Successfully:", result);
+
+                // Update local allData array
+                const localRowIndex = rowIndex - 2; // Adjust for zero-based index and header row
+                if (allData[localRowIndex]) {
+                  allData[localRowIndex][colIndex] = selectedValue;
+                }
+
+                // Show success status
+                showUpdateStatus("Cell updated successfully!", "success");
+              } catch (error) {
+                console.error("Error updating cell:", error);
+                // Revert cell content to previous value
+                cell.textContent = currentValue;
+                // Show error status
+                showUpdateStatus(
+                  "Failed to update cell. Reverting changes.",
+                  "error"
+                );
+              }
+            };
+
+            // Handle select change
+            select.addEventListener("change", function () {
+              const newValue = select.value;
+              handleUpdate(newValue);
+            });
+
+            // Handle blur event
+            select.addEventListener("blur", function () {
+              const selectedValue = select.value;
+              handleUpdate(selectedValue);
+            });
+          });
+        });
+      }
+
+      // Handle cell edit for text cells
+      async function handleCellEdit(e) {
+        const cell = e.target;
+        const newValue = cell.textContent.trim();
+        const rowIndex = parseInt(cell.dataset.rowIndex); // Google Sheets rows start at 1
+        const colIndex = parseInt(cell.dataset.colIndex); // 0-based index
+        const colLetter = getColumnLetter(colIndex + 1); // Convert to 1-based and then to letter
+
+        console.log(
+          `Cell Edited: Row ${rowIndex}, Column ${colLetter} - New Value: ${newValue}`
+        );
+
+        // Define the range to update
+        const range = `${SHEET_NAME}!${colLetter}${rowIndex}`;
+        console.log(`Updating range: ${range} with value: ${newValue}`);
+
+        // Prepare the request body
+        const requestBody = {
+          range: range,
+          majorDimension: "ROWS",
+          values: [[newValue]],
+        };
+
+        try {
+          // Send update request to Google Sheets API
+          const response = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`,
+            {
+              method: "PUT",
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(requestBody),
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(
+              `Error updating cell: ${response.status} ${response.statusText}`
+            );
+          }
+
+          const result = await response.json();
+          console.log("Cell Updated Successfully:", result);
+
+          // Update local allData array
+          const localRowIndex = rowIndex - 2; // Adjust for zero-based index and header row
+          if (allData[localRowIndex]) {
+            allData[localRowIndex][colIndex] = newValue;
+          }
+
+          // Show success status
+          showUpdateStatus("Cell updated successfully!", "success");
+        } catch (error) {
+          console.error("Error updating cell:", error);
+          // Revert cell content to previous value
+          fetchAndReRenderCell(rowIndex, colIndex, cell);
+          // Show error status
+          showUpdateStatus(
+            "Failed to update cell. Reverting changes.",
+            "error"
+          );
+        }
+      }
+
+      // Fetch and re-render a specific cell (to revert in case of error)
+      async function fetchAndReRenderCell(rowIndex, colIndex, cell) {
+        const colLetter = getColumnLetter(colIndex + 1);
+        const range = `${SHEET_NAME}!${colLetter}${rowIndex}`;
+        try {
+          const response = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?majorDimension=ROWS`,
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+              },
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(
+              `Error fetching cell data: ${response.status} ${response.statusText}`
+            );
+          }
+
+          const data = await response.json();
+          const cellValue =
+            data.values && data.values[0] && data.values[0][0]
+              ? data.values[0][0]
+              : "";
+          cell.textContent = cellValue;
+
+          // Update local allData array
+          const localRowIndex = rowIndex - 2;
+          if (allData[localRowIndex]) {
+            allData[localRowIndex][colIndex] = cellValue;
+          }
+        } catch (error) {
+          console.error("Error fetching cell data:", error);
+          alert("Failed to revert cell value. Please refresh the page.");
+        }
+      }
+
+      // Get column letter from index (1-based)
+      function getColumnLetter(colIndex) {
+        let letter = "";
+        while (colIndex > 0) {
+          let temp = (colIndex - 1) % 26;
+          letter = String.fromCharCode(temp + 65) + letter;
+          colIndex = Math.floor((colIndex - temp - 1) / 26);
+        }
+        return letter;
+      }
+
+      // Render pagination controls
+      function renderPagination(totalPages) {
+        console.log("Rendering pagination for total pages:", totalPages);
+        paginationControls.innerHTML = "";
+
+        // Previous Button
+        const prevButton = document.createElement("button");
+        prevButton.innerHTML = "&#9664;";
+        prevButton.className = currentPage === 1 ? "disabled" : "";
+        prevButton.disabled = currentPage === 1;
+        prevButton.addEventListener("click", () => {
+          if (currentPage > 1) {
+            currentPage--;
+            renderTable();
+          }
+        });
+        paginationControls.appendChild(prevButton);
+
+        // Page Numbers
+        for (let i = 1; i <= totalPages; i++) {
+          const pageNumber = document.createElement("button");
+          pageNumber.textContent = i;
+          pageNumber.className = `page-number ${
+            currentPage === i ? "active" : ""
+          }`;
+          pageNumber.addEventListener("click", () => {
+            currentPage = i;
+            renderTable();
+          });
+          paginationControls.appendChild(pageNumber);
+        }
+
+        // Next Button
+        const nextButton = document.createElement("button");
+        nextButton.innerHTML = "&#9654;";
+        nextButton.className = currentPage === totalPages ? "disabled" : "";
+        nextButton.disabled = currentPage === totalPages;
+        nextButton.addEventListener("click", () => {
+          if (currentPage < totalPages) {
+            currentPage++;
+            renderTable();
+          }
+        });
+        paginationControls.appendChild(nextButton);
+      }
+
+      // Update total customers display
+      function updateTotalCustomers() {
+        console.log("Updating total customers display");
+        totalCustomersDisplay.textContent = `Total Customers: ${allData.length}`;
+      }
+
+      // Initialize Charts
+      function initializeCharts() {
+        console.log("Initializing charts");
+        // Renewed vs. Not Renewed
+        const renewalCtx = document
+          .getElementById("renewalChart")
+          .getContext("2d");
+        renewalChart = new Chart(renewalCtx, {
+          type: "doughnut",
+          data: {
+            labels: ["Renewed", "Not Renewed"],
+            datasets: [
+              {
+                data: [0, 0],
+                backgroundColor: ["#4CAF50", "#F44336"], // Green and Red
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              datalabels: {
+                formatter: (value, context) => {
+                  const total = context.chart.data.datasets[0].data.reduce(
+                    (a, b) => a + b,
+                    0
+                  );
+                  const percentage = total
+                    ? ((value / total) * 100).toFixed(1) + "%"
+                    : "0%";
+                  return percentage;
+                },
+                color: "#fff",
+                font: {
+                  weight: "bold",
+                  size: 14,
+                },
+              },
+              legend: {
+                position: "bottom",
+              },
+            },
+          },
+        });
+
+        // Package Distribution
+        const packageCtx = document
+          .getElementById("packageChart")
+          .getContext("2d");
+        packageChart = new Chart(packageCtx, {
+          type: "bar",
+          data: {
+            labels: [], // Will be populated dynamically
+            datasets: [
+              {
+                label: "Number of Packages",
+                data: [],
+                backgroundColor: [], // Will be populated dynamically
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              datalabels: {
+                anchor: "end",
+                align: "top",
+                formatter: (value, context) => {
+                  const total = context.chart.data.datasets[0].data.reduce(
+                    (a, b) => a + b,
+                    0
+                  );
+                  const percentage = total
+                    ? ((value / total) * 100).toFixed(1) + "%"
+                    : "0%";
+                  return percentage;
+                },
+                color: "#000",
+                font: {
+                  weight: "bold",
+                  size: 12,
+                },
+              },
+              legend: {
+                display: false,
+              },
+              tooltip: {
+                enabled: true,
+              },
+            },
+            scales: {
+              y: {
+                display: true,
+                beginAtZero: true,
+                grid: {
+                  display: false, // Hide y-axis grid lines
+                },
+                ticks: {
+                  callback: function (value) {
+                    return value;
+                  },
+                },
+              },
+              x: {
+                grid: {
+                  display: false, // Hide x-axis grid lines if desired
+                },
+              },
+            },
+          },
+        });
+
+        // Contacted Status
+        const contactCtx = document
+          .getElementById("contactChart")
+          .getContext("2d");
+        contactChart = new Chart(contactCtx, {
+          type: "pie",
+          data: {
+            labels: ["Yes", "No", "No Response"],
+            datasets: [
+              {
+                data: [0, 0, 0],
+                backgroundColor: ["#4CAF50", "#FFC107", "#17a2b8"], // Green, Amber, Teal
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              datalabels: {
+                formatter: (value, context) => {
+                  const total = context.chart.data.datasets[0].data.reduce(
+                    (a, b) => a + b,
+                    0
+                  );
+                  const percentage = total
+                    ? ((value / total) * 100).toFixed(1) + "%"
+                    : "0%";
+                  return percentage;
+                },
+                color: "#fff",
+                font: {
+                  weight: "bold",
+                  size: 14,
+                },
+              },
+              legend: {
+                position: "bottom",
+              },
+            },
+          },
+        });
+
+        // Customer Status
+        const statusCtx = document
+          .getElementById("statusChart")
+          .getContext("2d");
+        statusChart = new Chart(statusCtx, {
+          type: "pie",
+          data: {
+            labels: [], // Will be populated dynamically
+            datasets: [
+              {
+                data: [],
+                backgroundColor: [], // Will be populated dynamically
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              datalabels: {
+                formatter: (value, context) => {
+                  const total = context.chart.data.datasets[0].data.reduce(
+                    (a, b) => a + b,
+                    0
+                  );
+                  const percentage = total
+                    ? ((value / total) * 100).toFixed(1) + "%"
+                    : "0%";
+                  return percentage;
+                },
+                color: "#fff",
+                font: {
+                  weight: "bold",
+                  size: 14,
+                },
+              },
+              legend: {
+                position: "bottom",
+              },
+            },
+          },
+        });
+      }
+
+      // Update Charts with Data
+      function updateCharts() {
+        console.log("Updating charts with data");
+        // Renewed vs. Not Renewed
+        const renewedCount = allData.filter(
+          (row) => row[13] && row[13].toLowerCase() === "yes"
+        ).length; // Assuming 'Renewed' is column N (index 13)
+        const notRenewedCount = allData.length - renewedCount;
+        renewalChart.data.datasets[0].data = [renewedCount, notRenewedCount];
+        renewalChart.update();
+
+        // Package Distribution - Dynamic Handling
+        updatePackageDistributionChart();
+
+        // Contacted Status
+        const contactedCounts = {
+          Yes: 0,
+          No: 0,
+          "No Response": 0,
+        };
+        allData.forEach((row) => {
+          const contacted = row[12]; // Assuming 'Contacted by Sales' is column M (index 12)
+          if (contacted) {
+            const contactedLower = contacted.toLowerCase().trim();
+            if (contactedLower === "yes") {
+              contactedCounts["Yes"]++;
+            } else if (contactedLower === "no") {
+              contactedCounts["No"]++;
+            } else {
+              contactedCounts["No Response"]++;
+            }
+          } else {
+            contactedCounts["No Response"]++;
+          }
+        });
+        contactChart.data.datasets[0].data = Object.values(contactedCounts);
+        contactChart.update();
+
+        // Customer Status - Updated to handle all unique statuses
+        const statusCounts = {};
+        allData.forEach((row) => {
+          const status = row[14]; // Assuming 'Status' is column O (index 14)
+          if (status) {
+            const statusFormatted = capitalizeWords(
+              status.toLowerCase().trim()
+            );
+            if (statusCounts[statusFormatted]) {
+              statusCounts[statusFormatted]++;
+            } else {
+              statusCounts[statusFormatted] = 1;
+            }
+          }
+        });
+        console.log("Status Counts:", statusCounts);
+
+        // Generate colors for each status excluding red
+        const statusColors = generateColors(
+          Object.keys(statusCounts).length,
+          true
+        ); // true indicates exclude red
+
+        // Update the Customer Status chart labels and data
+        statusChart.data.labels = Object.keys(statusCounts);
+        statusChart.data.datasets[0].data = Object.values(statusCounts);
+        statusChart.data.datasets[0].backgroundColor = statusColors;
+        statusChart.update();
+      }
+
+      // Capitalize first letter of each word in a string
+      function capitalizeWords(str) {
+        return str.replace(/\b\w/g, (char) => char.toUpperCase());
+      }
+
+      // Update Package Distribution Chart Dynamically
+      function updatePackageDistributionChart() {
+        // Extract all package names from the data
+        const packageNames = allData
+          .map((row) => row[7]?.trim())
+          .filter(Boolean); // Column 7 corresponds to "Name of Package"
+        const uniquePackageNames = [...new Set(packageNames)];
+        console.log("Unique Package Names:", uniquePackageNames);
+
+        // Count occurrences for each package name
+        const packageCounts = {};
+        uniquePackageNames.forEach((name) => {
+          const formattedName = capitalizeWords(name);
+          packageCounts[formattedName] = 0;
+        });
+
+        allData.forEach((row) => {
+          let packageName = row[7]; // Column 7 corresponds to "Name of Package"
+          if (packageName) {
+            packageName = packageName.trim();
+            const formattedName = capitalizeWords(packageName);
+            if (packageCounts.hasOwnProperty(formattedName)) {
+              packageCounts[formattedName]++;
+            } else {
+              console.warn(`Unexpected Package Name: "${formattedName}"`);
+              // Optionally, add it to the packageCounts with count 1
+              // packageCounts[formattedName] = 1;
+            }
+          }
+        });
+        console.log("Package Counts:", packageCounts);
+
+        // Generate colors for each package type excluding red
+        const backgroundColors = generateColors(
+          Object.keys(packageCounts).length,
+          true
+        ); // true indicates exclude red
+
+        // Update the chart labels and data
+        packageChart.data.labels = Object.keys(packageCounts);
+        packageChart.data.datasets[0].data = Object.values(packageCounts);
+        packageChart.data.datasets[0].backgroundColor = backgroundColors;
+        packageChart.update();
+      }
+
+      // Generate distinct colors for chart segments
+      // If excludeRed is true, ensure red is excluded; otherwise, include it
+      function generateColors(count, excludeRed = true) {
+        const colors = [];
+        const hueStep = Math.floor(360 / count);
+        for (let i = 0; i < count; i++) {
+          let hue = i * hueStep;
+          // If excluding red, skip hues around 0/360 degrees
+          if (excludeRed && (hue >= 340 || hue <= 20)) {
+            hue += 40; // Shift hue to avoid red
+            hue %= 360;
+          }
+          colors.push(`hsl(${hue}, 70%, 50%)`);
+        }
+        return colors;
+      }
+
+      // Handle form submission to add a new row
+      addRowForm.addEventListener("submit", async (e) => {
+        e.preventDefault(); // Prevent default form submission
+        console.log("Form submitted to add a new row");
+
+        // Gather form data
+        const formData = {
+          date: document.getElementById("date").value,
+          time: document.getElementById("time").value,
+          engineerName: document.getElementById("engineerName").value.trim(),
+          customerName: document.getElementById("customerName").value.trim(),
+          purpose: document.getElementById("purpose").value,
+          ticketOpened: document.getElementById("ticketOpened").value,
+          customerContacted: document.getElementById("customerContacted").value,
+          packageName: document.getElementById("packageName").value.trim(),
+          packageType: document.getElementById("packageType").value,
+          renewalReason: document.getElementById("renewalReason").value,
+          salesPerson: document.getElementById("salesPerson").value.trim(),
+          lastUpdated: document.getElementById("lastUpdated").value,
+          contacted: document.getElementById("contacted").value,
+          renewed: document.getElementById("renewed").value,
+          status: document.getElementById("status").value,
+          notes: document.getElementById("notes").value.trim(),
+          salesTeamAction: document
+            .getElementById("salesTeamAction")
+            .value.trim(),
+        };
+
+        console.log("Form Data Collected:", formData);
+
+        // Simple Validation Example
+        if (
+          !formData.engineerName ||
+          !formData.customerName ||
+          !formData.packageName ||
+          !formData.salesPerson
+        ) {
+          alert("Please fill in all required fields.");
+          return;
+        }
+
+        // Additional Validation (e.g., date formats) can be added here
+
+        try {
+          // Prepare the request body
+          const requestBody = {
+            values: [Object.values(formData)],
+          };
+          console.log("Request Body for Append:", requestBody);
+
+          // Send data to Google Sheets API
+          const response = await fetch(
+            `${SHEETS_API_BASE}:append?valueInputOption=USER_ENTERED`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(requestBody),
+            }
+          );
+
+          console.log("Append Response Status:", response.status);
+          console.log("Append Response Status Text:", response.statusText);
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error("Error adding row:", errorData);
+            throw new Error(
+              `Error adding row: ${response.status} ${response.statusText}`
+            );
+          }
+
+          const result = await response.json();
+          console.log("Row Added Successfully:", result);
+
+          // Append the new row to allData
+          allData.push(Object.values(formData));
+
+          // Re-render the table and update charts
+          renderTable();
+          updateTotalCustomers();
+          updateCharts();
+
+          // Hide the modal and reset the form
+          addRowModal.classList.add("hidden");
+          addRowForm.reset();
+
+          // Show success status
+          showUpdateStatus("Row added successfully!", "success");
+        } catch (error) {
+          console.error("Error in form submission:", error);
+          alert("Failed to add row. Please try again.");
+          // Show error status
+          showUpdateStatus("Failed to add row. Please try again.", "error");
+        }
+      });
+
+      // Add Row Button - Open Modal
+      addRowButton.addEventListener("click", () => {
+        console.log("Opening Add Row Modal");
+        addRowModal.classList.remove("hidden");
+      });
+
+      // Cancel Button - Close Modal
+      cancelButton.addEventListener("click", () => {
+        console.log("Closing Add Row Modal");
+        addRowModal.classList.add("hidden");
+      });
+
+      // Initialize Google Identity Services and Token Client on window load
+      window.onload = () => {
+        console.log("Window loaded, initializing services");
+        initializeGSI();
+        initializeTokenClient();
+        checkSession();
+      };
+
+      // Check for existing session
+      function checkSession() {
+        const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+        const storedExpiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
+        const sessionStart = localStorage.getItem(SESSION_START_KEY);
+
+        if (storedToken && storedExpiry && sessionStart) {
+          const now = Date.now();
+          const expiryTime = parseInt(storedExpiry, 10);
+          const sessionStartTime = parseInt(sessionStart, 10);
+
+          // Check if session is within one week
+          if (now - sessionStartTime < SESSION_DURATION) {
+            // Check if token is still valid
+            if (now < expiryTime) {
+              accessToken = storedToken;
+              console.log("Restoring session from localStorage");
+              onAccessTokenReceived();
+            } else {
+              // Token expired but session is still valid, request a new token
+              console.log("Access token expired, requesting a new token");
+              tokenClient.requestAccessToken({ prompt: "consent" });
+            }
+          } else {
+            // Session expired, clear storage
+            console.log("Session expired, clearing localStorage");
+            localStorage.removeItem(TOKEN_STORAGE_KEY);
+            localStorage.removeItem(TOKEN_EXPIRY_KEY);
+            localStorage.removeItem(SESSION_START_KEY);
+          }
+        } else {
+          console.log("No existing session found");
+        }
+      }
+
+      // Show Update Status
+      function showUpdateStatus(message, type) {
+        updateStatus.textContent = message;
+        updateStatus.className = `update-status ${type}`;
+        updateStatus.style.display = "block";
+
+        // Hide after 3 seconds
+        setTimeout(() => {
+          updateStatus.style.display = "none";
+        }, 3000);
+      }
+    </script>
+  </body>
+</html>
